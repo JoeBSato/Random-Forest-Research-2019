@@ -1,0 +1,256 @@
+---
+title: "Decision Trees Lab"
+author: "Joe Sato"
+date: "6/17/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data Setups
+
+```{r}
+set.seed(1)
+#Contains the dataset Boston
+library(MASS)
+
+#Package for Random Forest
+library(randomForest)
+
+#Train Dataset (?)
+train = sample (1: nrow(Boston), nrow(Boston)/2)
+
+#Test Dataset (?)
+medv=Boston [-train ,"medv"]
+```
+
+## Examine Boston Data: plot medv/each predictor (non-categorical ones)
+
+```{r}
+#Per capita crime rate by town
+plot(log(Boston$crim), Boston$medv) #not sure if log transform on the predictor is ok
+
+#Avg. # of rooms per dwelling
+plot(Boston$rm, Boston$medv) #decent linear relationship
+
+#Proportion of owner-occupied units built prior to 1940
+plot(Boston$age, Boston$medv) #negative linear relationship, makes sense
+
+#Weighted mean of distances to 5 Boston employment centres
+plot(Boston$dis, Boston$medv) #why is it kinda positive linear; should be negative
+
+#Lower status of the population (percent)
+plot(Boston$lstat, Boston$medv) #"lower status"? The reputation of town?
+```
+
+## Perform Bagging
+```{r}
+set.seed(1)
+
+#Perform Bagging
+bag.boston1 = randomForest(medv~., data=Boston, subset=train,
+mtry=13, importance =TRUE)
+
+bag.boston1
+
+#Make a prediction
+yhat.bag1 = predict (bag.boston1, newdata=Boston[-train,])
+
+#Measured squared error
+MSEbag <- mean((yhat.bag1 - medv)^2)
+```
+
+## Bagging with # of trees specified (n=25)
+
+```{r}
+bag.boston2 = randomForest(medv~., data=Boston, subset=train,
+mtry=13, ntree=25)
+
+yhat.bag2 = predict (bag.boston2, newdata=Boston[-train,])
+
+#Measured squared error: larger than the previously calculated MSE
+MSEbag25 <- mean((yhat.bag2 - medv)^2)
+```
+
+## Grow a Random Forest
+
+```{r}
+set.seed (1)
+
+rf.boston = randomForest(medv~., data=Boston, subset=train,
+mtry=6, importance =TRUE)
+
+yhat.rf = predict (rf.boston, newdata=Boston[-train,])
+
+#MSE
+MSErf <- mean( (yhat.rf - medv)^2 )
+```
+
+## Fit Linear Regression 
+
+### Identify a justifiable linear model via variable elimination
+Seek to eliminate the predictors of little importance via p-values; linear regression is not the objective here, so no need to do this intricately. Below is shown that crim, indus, chas,age, and tax have relatively high p-values, so eliminate these. (Though eliminating age is a little concerning.)
+```{r}
+#Fit linear regression 
+f0 <- lm(data=Boston, medv ~ .)
+summary(f0)$coefficients[,4]#each p-value
+```
+
+The list below shows that zn and rad have relatively large p-values; eliminate these two. 
+
+```{r}
+#Fit linear regression without the five predictors 
+f1 <- lm(data=Boston, medv ~ . - crim - indus - chas - age - tax)
+summary(f1)$coefficients[,4]#each p-value
+```
+
+The result below shows that all remaining predictors have infinitisimal p-values (except "black"), justifying the precedent steps.  
+```{r}
+f2 <- lm(data=Boston, medv ~ . - crim - indus - chas - age - tax - zn - rad )
+summary(f2)$coefficients[,4]
+```
+
+### Make predictions on medv using f0 & f2
+
+```{r}
+#Prediction of medv by f2 using "train"
+f2pred <- predict(f2, newdata=Boston[-train,])
+
+MSEf2 <- mean ((f2pred-medv)^2)
+
+#Prediction of medv by f0 using "train"
+f0pred <- predict(f0, newdata=Boston[-train,])
+
+MSEf0 <- mean ((f0pred-medv)^2)#smaller than MSEf2; probably related to R^2 always increasing
+```
+
+## Compare MSE-s
+
+Below is the list of the mean squared errors for Bagging, Bagging with ntrees=25, Random Forest, Linear Regression with all 13 predictors(f0), and Linear Regression with selected predictors(f2); Random Forest resulted in the smallest MSE.
+```{r}
+MSEs <- matrix(c(MSEbag,MSEbag25,MSErf,MSEf0,MSEf2), nrow=1, ncol=5,byrow=TRUE)
+colnames(MSEs) <- c("Bagging","Bagging: n=25", "Random Forest", "LR: f0", "LR:f2")
+MSEs
+```
+
+## Compute Prediction Intervals for f0 & f2
+
+```{r}
+#Predction intervals by f0 for each observed value of medv
+PIf0 <- predict(f0, newdata=Boston[-train,], interval="prediction", level=0.95)#too much gap between up & low? 
+
+#Count how many of yhat.rf values lie in the prediction intervals by PIf0
+YN <- c(rep(NA,253))
+for (k in 1:253) {
+  if (yhat.rf[k] <= PIf0[k,3] & yhat.rf[k] >= PIf0[k,2]) {YN[k] <- "Y"}
+  else {YN[k] <- "N"}
+}
+
+t=0
+#Count the number of Y in YN, then compute #Y/253
+for (k in 1:253) {
+  if (YN[k] == "Y"){t <- t+1}
+}
+t
+```
+
+Thus, among the 253 predictions made by Random Forest, 251 of them lie in the corresponding prediction intervals obtained by Linear Regression model with all 13 predictors(f0).
+
+```{r}
+#Predction intervals by f2 for each observed value of medv
+PIf2 <- predict(f2, newdata=Boston[-train,], interval="prediction", level=0.95)
+
+#Count how many of yhat.rf values lie in the prediction intervals by PIf2
+YN2 <- c(rep(NA,253))
+for (k in 1:253) {
+  if (yhat.rf[k] <= PIf2[k,3] & yhat.rf[k] >= PIf2[k,2]) {YN2[k] <- "Y"}
+  else {YN2[k] <- "N"}
+}
+
+t2=0
+#Count the number of Y in YN2, then compute #Y/253
+for (k in 1:253) {
+  if (YN2[k] == "Y"){t2 <- t2+1}
+}
+t2
+```
+
+Thus, among the 253 predictions made by Random Forest, 252 of them lie in the corresponding prediction intervals obtained by Linear Regression model with selected predictors(f2). 
+
+
+```{r}
+#Count how many of medv values lie in the prediction intervals by PIf2
+YN3 <- c(rep(NA,253))
+for (k in 1:253) {
+  if (medv[k] <= PIf2[k,3] & medv[k] >= PIf2[k,2]) {YN3[k] <- "Y"}
+  else {YN3[k] <- "N"}
+}
+
+#Count the number of Y in YN2, then compute #Y/253
+t3=0
+
+for (k in 1:253) {
+  if (YN3[k] == "Y"){t3 <- t3+1}
+}
+
+t3
+```
+
+Thus, 240/253 = 94.9% of the medv values (the test data) lie in the prediction intervals obtained via f2
+
+```{r}
+#Count how many of medv values lie in the prediction intervals by PIf0
+YN4 <- c(rep(NA,253))
+for (k in 1:253) {
+  if (medv[k] <= PIf0[k,3] & medv[k] >= PIf0[k,2]) {YN4[k] <- "Y"}
+  else {YN4[k] <- "N"}
+}
+
+#Count the number of Y in YN2, then compute #Y/253
+t4=0
+
+for (k in 1:253) {
+  if (YN4[k] == "Y"){t4 <- t4+1}
+}
+
+t4
+```
+
+Thus, 242/253 = 95.7% of the medv values (the test data) lies in the prediction intervals obtained via f0. 
+
+## Compute Prediction Intervals for Random Forest via randomForest SRC
+
+```{r}
+library(randomForestSRC)
+set.seed(1)
+qrf  <- quantreg(medv~., data = Boston)
+
+#quantile regresssion with mse splitting
+qrf1 <- quantreg(medv~.,data = Boston, spritrule="mse", nodesize=1)
+
+#continuous rank probability score
+plot(get.quantile.crps(qrf1), type="l")
+```
+
+```{r}
+#quantile regression plot
+plot.quantreg(qrf1, .05, .95)
+```
+
+```{r}
+#quantile regression plot
+plot.quantreg(qrf1, 0.25, 0.75)
+```
+
+```{r}
+#25, 50, 75 quantiles 
+qt <- get.quantile(qrf1, c(.25, .50, .75)) #dim(qt)=[506 3]
+
+#values expected under normality 
+qStat <- get.quantile.stat(qrf1)
+qMean <- qStat$mean
+q
+```
+
