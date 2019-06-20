@@ -220,7 +220,7 @@ t4
 
 Thus, 242/253 = 95.7% of the medv values (the test data) lies in the prediction intervals obtained via f0. 
 
-## Compute Prediction Intervals for Random Forest via randomForest SRC
+## Compute Prediction Intervals for Random Forest via randomForestSRC
 
 ```{r}
 library(randomForestSRC)
@@ -228,29 +228,40 @@ set.seed(1)
 qrf  <- quantreg(medv~., data = Boston)
 
 #quantile regresssion with mse splitting
-qrf1 <- quantreg(medv~.,data = Boston, spritrule="mse", nodesize=1)
+qrf1 <- quantreg(medv~., data = Boston, spritrule="mse", nodesize=1)
 
-#continuous rank probability score
-plot(get.quantile.crps(qrf1), type="l")
+#0.05, 0.95 quantiles 
+qt <- get.quantile(qrf1, c(.05, .95)) #dim(qt)=[506 3]
 ```
 
 ```{r}
-#quantile regression plot
-plot.quantreg(qrf1, .05, .95)
+train2 <- Boston[train,]
+
+qrf2 <-    quantreg(medv~., data = train2,  spritrule="mse", nodesize=1)
+qrTest2 <- quantreg(object=qrf2, newdata=Boston[-train,])
+qt2 <- get.quantile(qrTest2, c(.05,.95))
+
+qrf22 <- quantreg(medv~., data=train2)
+qtTest <- quantreg(object=qrf22, newdata=Boston[-train2,])
+qtPItest <- get.quantile(qtTest, c(.05, .95))
 ```
 
 ```{r}
-#quantile regression plot
-plot.quantreg(qrf1, 0.25, 0.75)
+#Count how many of medv values lie in the prediction intervals by qtPItest
+YN4 <- c(rep(NA,253))
+for (k in 1:253) {
+  if (medv[k] <= qtPItest[k,2] & medv[k] >= qtPItest[k,1]) {YN4[k] <- "Y"}
+  else {YN4[k] <- "N"}
+}
+
+t4=0
+#Count the number of Y in YN4, then compute #Y/253
+for (k in 1:253) {
+  if (YN4[k] == "Y"){t4 <- t4+1}
+}
+t4
 ```
 
-```{r}
-#25, 50, 75 quantiles 
-qt <- get.quantile(qrf1, c(.25, .50, .75)) #dim(qt)=[506 3]
 
-#values expected under normality 
-qStat <- get.quantile.stat(qrf1)
-qMean <- qStat$mean
-q
-```
+
 
