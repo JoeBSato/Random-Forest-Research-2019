@@ -274,12 +274,87 @@ Thus, among the 253 prediction interals made by the Random Forests grown on the 
 
 ## Simulation Studies to Investigate RF and LM Prediction Intervals
 
+### Define the function Results: outputs MSE, Avg.Width, Coverage Rate for LR & RF
+
+```{r}
+Results <- function(traindata, testdata, nodesize){
+
+Results <- matrix(NA, nrow=2,ncol=3)
+##################
+#### Linear Regression Model
+
+#Fit a linear model with all predictors
+m <- lm(data=traindata,y~.)
+
+#Predction intervals by m1 for each simulated value of y
+PI <- data.frame(predict(m, newdata=testdata, interval="prediction", level=0.95))
+
+#Count how many values of "testdata" lie in the prediction intervals by PI1
+attempt <- PI$lwr <= testdata$y  & testdata$y <= PI$upr
+s=0
+for (k in 1:(length(attempt))) {
+  if (attempt[k] == "TRUE"){s <- s+1}
+}
+
+# MSE
+Results[1,1] <- sum((PI$fit - testdata$y)^2)
+# Avg. width of the prediction intervals
+Results[1,2] <- mean(PI$upr-PI$lwr)#sum(PI[,3]-PI[,2])/(dim(PI)[[1]])
+#Coverage Rate of the prediction intervals by LR
+Results[1,3] <- s/(length(attempt))
+
+####################################
+#### Random Forests 
+library(randomForestSRC)
+
+#Grow Forests on the training dataset "trainOne"
+ranfor <- quantreg(y~., data = traindata,  spritrule="mse", nodesize=nodesize)
+#Apply the grown model on the test set "test1"
+rfTest <- quantreg(object=ranfor, newdata=testdata)
+
+#Prediction intervals for the test set
+Pinter <- get.quantile(rfTest, c(.025,.975))
+
+#Count how many values of "test1" lie in the prediction intervals by Pinter1
+check <- Pinter[,1] <= testdata$y & testdata$y <= Pinter[,2]
+z=0
+for (k in 1:(length(check))) {
+  if (check[k] == "TRUE"){z <- z+1}
+}
+
+#### MSE
+Results[2,1] <- sum((testdata$y - rfTest$predicted)^2)
+#### Avg. width of the prediction intervals 
+Results[2,2] <- mean(Pinter[,2]-Pinter[,1])#sum(Pinter[,2] - Pinter[,1])/(dim(Pinter)[1])
+####Counts of the values of testdata that lie in the prediction intervals by RF
+Results[2,3] <- z/(length(check))
+
+#Define the output of this function
+return(Results)
+}
+```
+
+```{r}
+# See if it works: It does!
+set.seed(06232019)
+n <- 2000  #number of observations (training and test set combined)
+sig1 <- 5
+
+x <- runif(n, 0, 10) #generate x variable Unif(0,10) distribution
+e <- rnorm(n, 0, sig1) #generate error term 
+y <- 2*x1+3 + e1  #generate response values 
+
+data1 <- data.frame(x, y) #combine explanatory and response varables into data frame
+trainOne <- data1[1:(n/2), ] #1st half of observations as training data
+test1 <- data1[(n/2+1):n, ] #2nd half of observations as test data
+
+resultat <- Results(traindata=trainOne, testdata=test1, nodesize = 10)
+```
+
+
 ### Simulation 1: Linear Model (one variable)
 
 ```{r}
-##################
-#Simulate 
-
 set.seed(06232019)#set seed
 n <- 2000  #number of observations (training and test set combined)
 sig1 <- 5  #error standard deviation
@@ -287,94 +362,59 @@ i <- 10
 
 #Make a result storing array: MSE, Avg. Width, # in PI
 rec1 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+his1 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+tra1 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
 
 #Make a For Loop
 for (t in 1:i) {
-  
 
-x1 <- runif(n, 0, 10) #generate x variable Unif(0,10) distribution
-e1 <- rnorm(n, 0, sig1) #generate error term 
-y1 <- 2*x1+3 + e1  #generate response values 
+x<- runif(n, 0, 10) #generate x variable Unif(0,10) distribution
+e <- rnorm(n, 0, sig1) #generate error term 
+y <- 2*x1+3 + e  #generate response values 
 
-data1 <- data.frame(x1, y1) #combine explanatory and response varables into data frame
+data1 <- data.frame(x, y) #combine explanatory and response varables into data frame
 trainOne <- data1[1:(n/2), ] #1st half of observations as training data
 test1 <- data1[(n/2+1):n, ] #2nd half of observations as test data
 
-##################
-#### Linear Regression Model
-
-#Fit a linear model with all predictors
-m1 <- lm(data=trainOne, y1~.)
-
-#Predction intervals by m1 for each simulated value of y
-PI1 <- predict(m1, newdata=test1, interval="prediction", level=0.95)
-
-# MSE
-rec1[1,1,t] <- sum((PI1[,1] - test1[,2])^2)
-#Avg. width of the prediction intervals
-rec1[1,2,t] <- sum(PI1[,3]-PI1[,2])/(n/2)
-
-#Count how many values of "test" lie in the prediction intervals by PI1
-attempt1 <- PI1[,2] <= test1[,2]  & test1[,2] <= PI1[,3]
-
-s1=0
-for (k in 1:(n/2)) {
-  if (attempt1[k] == "TRUE"){s1 <- s1+1}
+#rec1
+rec1[,,t] <- Results(traindata=trainOne, testdata=test1, nodesize =  1)
+#his1
+his1[,,t] <- Results(traindata=trainOne, testdata=test1, nodesize =  5)
+#tra1
+tra1[,,t] <- Results(traindata=trainOne, testdata=test1, nodesize = 10)
 }
-rec1[1,3,t] <- s1
+```
 
-####################################
-# Random Forests 
-library(randomForestSRC)
+```{r}
+#Make the table by taking average over i=1:10
+rec1Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
 
-#Grow Forests on the training dataset "trainOne"
-rf1 <-    quantreg(y1~., data = trainOne,  spritrule="mse", nodesize=1)
-#Apply the grown model on the test set "test1"
-rfTest1 <- quantreg(object=rf1, newdata=test1)
-
-#### MSE
-rec1[2,1,t] <- sum((test1 - rfTest1$predicted)^2)
-
-#Prediction intervals for the test set
-Pinter1 <- get.quantile(rfTest1, c(.05,.95))
-
-#### Avg. width of the prediction intervals 
-rec1[2,2,t] <- sum(Pinter1[,2] - Pinter1[,1])/length(Pinter1)
-
-####Count how many values of "test1" lie in the prediction intervals by Pinter1
-check1 <- Pinter1[,1] <= test1[,2] & test1[,2] <= Pinter1[,2]
-
-z1=0
-for (k in 1:(n/2)) {
-  if (check1[k] == "TRUE"){z1 <- z1+1}
+for (k in 1:2) {
+  for (j in 1:3) {
+    rec1Tab[k,j] <- mean(rec1[k,j,])
+  }
 }
-rec1[2,3,t] <- z1
 
+his1Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+
+for (k in 1:2) {
+  for (j in 1:3) {
+    his1Tab[k,j] <- mean(his1[k,j,])
+  }
+}
+
+tra1Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+
+for (k in 1:2) {
+  for (j in 1:3) {
+    tra1Tab[k,j] <- mean(tra1[k,j,])
+  }
 }
 ```
 
 ### Simulation 2: Nonlinear Model (one variable)
 
-#### Simulate
-
 ```{r}
-set.seed(06232019)#set seed
-n2 <- 2000  #number of observations (training and test set combined)
-sig2 <- 5  #error standard deviation
-
-x2 <- runif(n2, 0, 10) #generate x variable Unif(0,10) distribution
-e2 <- rnorm(n2, 0, sig2) #generate error term 
-y2 <- 0.1*(x2-7)^2-3*cos(x2) + 5*log(abs(x2)) + 3 + e2  #generate response values 
-
-data2 <- data.frame(x2, y2) #combine explanatory and response varables into data frame
-trainTwo <- data2[1:(n2/2), ] #use first half of observations as training data
-test2 <- data2[(n2/2+1):n2, ] #use second half of observations as test data
-```
-
-```{r}
-##################
-#Simulate 
-
 set.seed(06232019)#set seed
 n <- 2000  #number of observations (training and test set combined)
 sig1 <- 5  #error standard deviation
@@ -382,428 +422,214 @@ i <- 10
 
 #Make a result storing array: MSE, Avg. Width, # in PI
 rec2 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+his2 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+tra2 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
 
 #Make a For Loop
 for (t in 1:i) {
-  
 
-x1 <- runif(n, 0, 10) #generate x variable Unif(0,10) distribution
-e1 <- rnorm(n, 0, sig1) #generate error term 
-y1 <- 0.1*(x1-7)^2-3*cos(x1) + 5*log(abs(x1)) + 3 + e1  #generate response values
+x <- runif(n, 0, 10) #generate x variable Unif(0,10) distribution
+e <- rnorm(n, 0, sig1) #generate error term 
+y <- 0.1*(x-7)^2-3*cos(x) + 5*log(abs(x)) + 3 + e  #generate response values
 
-data1 <- data.frame(x1, y1) #combine explanatory and response varables into data frame
-trainOne <- data1[1:(n/2), ] #1st half of observations as training data
-test1 <- data1[(n/2+1):n, ] #2nd half of observations as test data
+data2 <- data.frame(x, y) #combine explanatory and response varables into data frame
+trainTwo <- data2[1:(n/2), ] #1st half of observations as training data
+test2 <- data2[(n/2+1):n, ] #2nd half of observations as test data
 
-##################
-#### Linear Regression Model
-
-#Fit a linear model with all predictors
-m1 <- lm(data=trainOne, y1~.)
-
-#Predction intervals by m1 for each simulated value of y
-PI1 <- predict(m1, newdata=test1, interval="prediction", level=0.95)
-
-# MSE
-rec2[1,1,t] <- sum((PI1[,1] - test1[,2])^2)
-#Avg. width of the prediction intervals
-rec2[1,2,t] <- sum(PI1[,3]-PI1[,2])/(n/2)
-
-#Count how many values of "test" lie in the prediction intervals by PI1
-attempt1 <- PI1[,2] <= test1[,2]  & test1[,2] <= PI1[,3]
-
-s1=0
-for (k in 1:(n/2)) {
-  if (attempt1[k] == "TRUE"){s1 <- s1+1}
+#rec2
+rec2[,,t] <- Results(traindata=trainTwo, testdata=test2, nodesize =  1)
+#his2
+his2[,,t] <- Results(traindata=trainTwo, testdata=test2, nodesize =  5)
+#tra2
+tra2[,,t] <- Results(traindata=trainTwo, testdata=test2, nodesize = 10)
 }
-rec2[1,3,t] <- s1
-
-####################################
-# Random Forests 
-library(randomForestSRC)
-
-#Grow Forests on the training dataset "trainOne"
-rf1 <-    quantreg(y1~., data = trainOne,  spritrule="mse", nodesize=1)
-#Apply the grown model on the test set "test1"
-rfTest1 <- quantreg(object=rf1, newdata=test1)
-
-#### MSE
-rec2[2,1,t] <- sum((test1 - rfTest1$predicted)^2)
-
-#Prediction intervals for the test set
-Pinter1 <- get.quantile(rfTest1, c(.05,.95))
-
-#### Avg. width of the prediction intervals 
-rec2[2,2,t] <- sum(Pinter1[,2] - Pinter1[,1])/length(Pinter1)
-
-####Count how many values of "test1" lie in the prediction intervals by Pinter1
-check1 <- Pinter1[,1] <= test1[,2] & test1[,2] <= Pinter1[,2]
-
-z1=0
-for (k in 1:(n/2)) {
-  if (check1[k] == "TRUE"){z1 <- z1+1}
-}
-rec2[2,3,t] <- z1
-
-}
-```
-
-#### Prediction Intervals from Linear Regression Model
-
-```{r}
-#Fit a linear model with all predictors
-m2 <- lm(data=trainTwo, y2~.)
-
-#Predction intervals by m1 for each simulated value of y
-PI2 <- predict(m2, newdata=test2, interval="prediction", level=0.95)
-
-#Count how many values of "test" lie in the prediction intervals by PI1
-ON2 <- c(rep(NA,n2/2))
-
-for (k in 1:(n2/2)) {
-  if (PI2[k,2] <= test2[k,2]  & test2[k,2] <= PI2[k,3]) {ON2[k] <- "Y"}
-  else {ON2[k] <- "N"}
-}
-
-
-#Count the number of Y in ON1, then compute #Y/(n/2)
-s2=0
-
-for (k in 1:(n2/2)) {
-  if (ON2[k] == "Y"){s2 <- s2+1}
-}
-s2
-```
-
-#### Prediction INtervals from Random Forests
-
-```{r}
-#Grow Forests on the training dataset "trainTwo"
-rf2 <-    quantreg(y2~., data = trainTwo,  spritrule="mse", nodesize=1)
-
-#Apply the grown model on the test set "test2"
-rfTest2 <- quantreg(object=rf2, newdata=trainTwo)
-
-#Get the prediction intervals for the predictions on the test set
-Pinter2 <- get.quantile(rfTest2, c(.05,.95))
 ```
 
 ```{r}
-#Count how many values of "test2" lie in the prediction intervals by Pinter2
-check2 <- c(rep(NA,n/2))
+#Make the table by taking average over i=1:10
+rec2Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
 
-for (k in 1:n/2) {
-  if (Pinter2[k,1] <= test2[k,2]  & test2[k,2] <= Pinter2[k,2]) {check2[k] <- "Y"}
-  else {check2[k] <- "N"}
+for (k in 1:2) {
+  for (j in 1:3) {
+    rec2Tab[k,j] <- mean(rec2[k,j,])
+  }
 }
 
+his2Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
 
-#Count the number of Y in check2, then compute #Y/(n/2)
-z2=0
-
-for (k in 1:n/2) {
-  if (check2[k] == "Y"){z2 <- z2+1}
+for (k in 1:2) {
+  for (j in 1:3) {
+    his2Tab[k,j] <- mean(his2[k,j,])
+  }
 }
-z2
+
+tra2Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+
+for(k in 1:2) {
+  for (j in 1:3) {
+    tra2Tab[k,j] <- mean(tra2[k,j,])
+  }
+}
 ```
+
 
 ### Simulation 3: Linear Model (multivariate)
 
-#### Simulate
-
 ```{r}
-##################
-#Simulate 
-
 set.seed(06232019)#set seed
 n <- 2000  #number of observations (training and test set combined)
 sig1 <- 5  #error standard deviation
-i <- 10
+i <- 5
 
 #Make a result storing array: MSE, Avg. Width, # in PI
 rec3 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+his3 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+tra3 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
 
 #Make a For Loop
 for (t in 1:i) {
-  
+
+# Simulate
 xvec <- runif(n*10, 0, 10) #generate observations for 10 explanatory variables
 X <- matrix(xvec, ncol=10) #arrange explanatory variables into matrix
 e <- rnorm(n , 0, sig1) #generate error term 
 y <- 2*X[,1]+3*X[,4]+4*X[,6]-3*X[,7]+ X[,9] + e  #generate response values
 
-data1 <- data.frame(X, y) #combine explanatory and response varables into data frame
-trainOne <- data1[1:(n/2), ] #1st half of observations as training data
-test1 <- data1[(n/2+1):n, ] #2nd half of observations as test data
+data3 <- data.frame(X, y) #combine explanatory and response varables into data frame
+trainThree <- data3[1:(n/2), ] #1st half of observations as training data
+test3 <- data3[(n/2+1):n, ] #2nd half of observations as test data
 
-##################
-#### Linear Regression Model
-
-#Fit a linear model with all predictors
-m1 <- lm(data=trainOne, y~.)
-
-#Predction intervals by m1 for each simulated value of y
-PI1 <- predict(m1, newdata=test1, interval="prediction", level=0.95)
-
-# MSE
-rec3[1,1,t] <- sum((PI1[,1] - test1[,2])^2)
-#Avg. width of the prediction intervals
-rec3[1,2,t] <- sum(PI1[,3]-PI1[,2])/(n/2)
-
-#Count how many values of "test" lie in the prediction intervals by PI1
-attempt1 <- PI1[,2] <= test1[,2]  & test1[,2] <= PI1[,3]
-
-s1=0
-for (k in 1:(n/2)) {
-  if (attempt1[k] == "TRUE"){s1 <- s1+1}
+#rec3
+rec3[,,t] <- Results(traindata=trainThree, testdata=test3, nodesize =  1)
+#his3
+his3[,,t] <- Results(traindata=trainThree, testdata=test3, nodesize =  5)
+#tra3
+tra3[,,t] <- Results(traindata=trainThree, testdata=test3, nodesize = 10)
 }
-rec3[1,3,t] <- s1
-
-####################################
-# Random Forests 
-library(randomForestSRC)
-
-#Grow Forests on the training dataset "trainOne"
-rf1 <-    quantreg(y~., data = trainOne,  spritrule="mse", nodesize=1)
-#Apply the grown model on the test set "test1"
-rfTest1 <- quantreg(object=rf1, newdata=test1)
-
-#### MSE
-rec3[2,1,t] <- sum((test1 - rfTest1$predicted)^2)
-
-#Prediction intervals for the test set
-Pinter1 <- get.quantile(rfTest1, c(.05,.95))
-
-#### Avg. width of the prediction intervals 
-rec3[2,2,t] <- sum(Pinter1[,2] - Pinter1[,1])/length(Pinter1)
-
-####Count how many values of "test1" lie in the prediction intervals by Pinter1
-check1 <- Pinter1[,1] <= test1[,2] & test1[,2] <= Pinter1[,2]
-
-z1=0
-for (k in 1:(n/2)) {
-  if (check1[k] == "TRUE"){z1 <- z1+1}
-}
-rec3[2,3,t] <- z1
-
-}
-```
-
-#### Prediction Intervals from Linear Regression Model
-
-```{r}
-#Fit a linear model with all predictors
-m3 <- lm(data=trainThree, y~.)
-
-#Predction intervals by m1 for each simulated value of y
-PI3 <- predict(m3, newdata=test3, interval="prediction", level=0.95)
-
-#Count how many values of "test" lie in the prediction intervals by PI3
-ON3 <- c(rep(NA,n3/2))
-
-for (k in 1:n3/2) {
-  if (PI3[k,2] <= test3[k,2]  & test3[k,2] <= PI3[k,3]) {ON3[k] <- "Y"}
-  else {ON3[k] <- "N"}
-}
-
-
-#Count the number of Y in ON3, then compute #Y/(n/2)
-s3=0
-
-for (k in 1:n3/2) {
-  if (ON3[k] == "Y"){s3 <- s3+1}
-}
-s3
-```
-
-#### Predcition Intervals from Random Forests
-
-```{r}
-#Grow Forests on the training dataset "trainThree"
-rf3 <-    quantreg(y3~., data = trainThree,  spritrule="mse", nodesize=1)
-
-#Apply the grown model on the test set "test3"
-rfTest3 <- quantreg(object=rf3, newdata=trainThree)
-
-#Get the prediction intervals for the predictions on the test set
-Pinter3 <- get.quantile(rfTest3, c(.05,.95))
 ```
 
 ```{r}
-#Count how many values of "test3" lie in the prediction intervals by Pinter3
-check3 <- c(rep(NA,n/2))
+#Make the table by taking average over i=1:10
+rec3Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
 
-for (k in 1:n/2) {
-  if (Pinter3[k,1] <= test3[k,2]  & test3[k,2] <= Pinter3[k,2]) {check3[k] <- "Y"}
-  else {check3[k] <- "N"}
+for (k in 1:2) {
+  for (j in 1:3) {
+    rec3Tab[k,j] <- mean(rec3[k,j,])
+  }
 }
 
+his3Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
 
-#Count the number of Y in check3, then compute #Y/(n/2)
-z3=0
-
-for (k in 1:n/2) {
-  if (check3[k] == "Y"){z3 <- z3+1}
+for (k in 1:2) {
+  for (j in 1:3) {
+    his3Tab[k,j] <- mean(his3[k,j,])
+  }
 }
-z3
+
+tra3Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+
+for (k in 1:2) {
+  for (j in 1:3) {
+    tra3Tab[k,j] <- mean(tra3[k,j,])
+  }
+}
+
 ```
+
 
 ### Simulation 4: Nonlinear Model (multivariate)
 
-#### Simulate
-
 ```{r}
-
-xvec4 <- runif(n*10, 0, 10) #generate observations for 10 explanatory variables
-X4 <- matrix(xvec4, ncol=10) #arrange explanatory variables into matrix
-
-e4 <- rnorm(n, 0, sig) #generate error term 
-y4 <- (X4[,1]-6)^2 + 12*cos(X4[,3]) + (X4[,7]-5)*(X4[,8]-3) + 0.02*(X4[,10]-5)^5+ e4  #generate response values 
-
-data4 <- data.frame(X4, y4) #combine explanatory and response varables into data frame
-trainFour <- data4[1:(n/2), ] #use first half of observations as training data
-test4 <- data4[(n/2+1):n, ] #use second half of observations as test data
-```
-
-```{r}
-##################
-#Simulate 
-
 set.seed(06232019)#set seed
-n <- 2000  #number of observations (training and test set combined)
+ #number of observations (training and test set combined)
 sig1 <- 5  #error standard deviation
 i <- 10
 
 #Make a result storing array: MSE, Avg. Width, # in PI
 rec4 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+his4 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+tra4 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
 
 #Make a For Loop
 for (t in 1:i) {
 
+# Simulate data
 xvec <- runif(n*10, 0, 10) #generate observations for 10 explanatory variables
 X <- matrix(xvec, ncol=10) #arrange explanatory variables into matrix
 e <- rnorm(n, 0, sig1) #generate error term 
 y <- (X[,1]-6)^2 + 12*cos(X[,3]) + (X[,7]-5)*(X[,8]-3) + 0.02*(X[,10]-5)^5+ e  #generate response values
 
-data1 <- data.frame(X, y) #combine explanatory and response varables into data frame
-trainOne <- data1[1:(n/2), ] #1st half of observations as training data
-test1 <- data1[(n/2+1):n, ] #2nd half of observations as test data
+data4 <- data.frame(X, y) #combine explanatory and response varables into data frame
+trainFour <- data4[1:(n/2), ] #1st half of observations as training data
+test4 <- data4[(n/2+1):n, ] #2nd half of observations as test data
 
-##################
-#### Linear Regression Model
-
-#Fit a linear model with all predictors
-m1 <- lm(data=trainOne, y~.)
-
-#Predction intervals by m1 for each simulated value of y
-PI1 <- predict(m1, newdata=test1, interval="prediction", level=0.95)
-
-# MSE
-rec4[1,1,t] <- sum((PI1[,1] - test1[,2])^2)
-#Avg. width of the prediction intervals
-rec4[1,2,t] <- sum(PI1[,3]-PI1[,2])/(n/2)
-
-#Count how many values of "test" lie in the prediction intervals by PI1
-attempt1 <- PI1[,2] <= test1[,2]  & test1[,2] <= PI1[,3]
-
-s1=0
-for (k in 1:(n/2)) {
-  if (attempt1[k] == "TRUE"){s1 <- s1+1}
+#rec4
+rec4[,,t] <- Results(traindata=trainFour, testdata=test4, nodesize =  1)
+#his4
+his4[,,t] <- Results(traindata=trainFour, testdata=test4, nodesize =  5)
+#tra4
+tra4[,,t] <- Results(traindata=trainFour, testdata=test4, nodesize = 10)
 }
-rec4[1,3,t] <- s1
-
-####################################
-# Random Forests 
-library(randomForestSRC)
-
-#Grow Forests on the training dataset "trainOne"
-rf1 <-    quantreg(y~., data = trainOne,  spritrule="mse", nodesize=1)
-#Apply the grown model on the test set "test1"
-rfTest1 <- quantreg(object=rf1, newdata=test1)
-
-#### MSE
-rec4[2,1,t] <- sum((test1 - rfTest1$predicted)^2)
-
-#Prediction intervals for the test set
-Pinter1 <- get.quantile(rfTest1, c(.05,.95))
-
-#### Avg. width of the prediction intervals 
-rec4[2,2,t] <- sum(Pinter1[,2] - Pinter1[,1])/length(Pinter1)
-
-####Count how many values of "test1" lie in the prediction intervals by Pinter1
-check1 <- Pinter1[,1] <= test1[,2] & test1[,2] <= Pinter1[,2]
-
-z1=0
-for (k in 1:(n/2)) {
-  if (check1[k] == "TRUE"){z1 <- z1+1}
-}
-rec4[2,3,t] <- z1
-
-}
-```
-
-#### Prediction Intervals from Linear Regression Model
-
-```{r}
-#Fit a linear model with all predictors
-m4 <- lm(data=trainThree, y4~.)
-
-#Predction intervals by m1 for each simulated value of y
-PI4 <- predict(m4, newdata=test4, interval="prediction", level=0.95)
-
-#Count how many values of "test" lie in the prediction intervals by PI4
-ON4 <- c(rep(NA,n/2))
-
-for (k in 1:n/2) {
-  if (PI4[k,2] <= test4[k,2]  & test4[k,2] <= PI4[k,3]) {ON4[k] <- "Y"}
-  else {ON4[k] <- "N"}
-}
-
-
-#Count the number of Y in ON4, then compute #Y/(n/2)
-s4=0
-
-for (k in 1:n/2) {
-  if (ON4[k] == "Y"){s4 <- s4+1}
-}
-s4
-```
-
-#### Prediction Intervals from Random Forests
-
-```{r}
-#Grow Forests on the training dataset "trainFour"
-rf4 <-    quantreg(y4~., data = trainFour,  spritrule="mse", nodesize=1)
-
-#Apply the grown model on the test set "test4"
-rfTest4 <- quantreg(object=rf4, newdata=trainFour)
-
-#Get the prediction intervals for the predictions on the test set
-Pinter4 <- get.quantile(rfTest4, c(.05,.95))
 ```
 
 ```{r}
-#Count how many values of "test4" lie in the prediction intervals by Pinter4
-check4 <- c(rep(NA,n/2))
+#Make the table by taking average over i=1:10
+rec4Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
 
-for (k in 1:n/2) {
-  if (Pinter4[k,1] <= test4[k,2]  & test4[k,2] <= Pinter4[k,2]) {check4[k] <- "Y"}
-  else {check4[k] <- "N"}
+for (k in 1:2) {
+  for (j in 1:3) {
+    rec4Tab[k,j] <- mean(rec4[k,j,])
+  }
 }
 
+his4Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
 
-#Count the number of Y in check4, then compute #Y/(n/2)
-z4=0
-
-for (k in 1:n/2) {
-  if (check4[k] == "Y"){z4 <- z4+1}
+for (k in 1:2) {
+  for (j in 1:3) {
+    his4Tab[k,j] <- mean(his4[k,j,])
+  }
 }
-z4
+
+tra4Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+
+for (k in 1:2) {
+  for (j in 1:3) {
+    tra4Tab[k,j] <- mean(tra4[k,j,])
+  }
+}
+
+```
+
+### Summarize the Results
+
+```{r}
+Fin <- list(rec=list(one=rec1Tab,two=rec2Tab, three=rec3Tab, four=rec4Tab), his=list(one=his1Tab, two=his2Tab, three=his3Tab,four=his4Tab), tra=list(one=tra1Tab, two=tra2Tab, three=tra3Tab, four=tra4Tab))
 ```
 
 ```{r}
-save.image(file = "LR & RF comparison.Rdata")
+save.image(file = "LR & RF comparison.Rdata") 
 ```
 
+## New Statistical Index? 
 
+Seek to invent a statistical index that combines Avg.MSE & Avg. Width of PI-s & Avg.Coverage Rate to compare the predictive performances of two prediction models on a same dataset. 
+
+Call this index "q". It should be such that: 
+  -Lies in [0,1]
+  -Increases for the predictive models that performs better
+  -Increases for smaller MSE
+  -Increases for narrower width 
+  -Increases for higher coverage rate
+
+```{r}
+#A sinple, rough idea might be: 
+q <- list(rec=list(), his=list(), tra=list())
+
+for (k in 1:3) {
+for (t in 1:4) {
+q[[k]][[t]] <- matrix(c(c("LR","RF"),c(Fin[[k]][[t]][1,3]/(Fin[[k]][[t]][1,2]*Fin[[k]][[t]][1,1]),Fin[[k]][[t]][2,3]/(Fin[[k]][[t]][2,2]*Fin[[k]][[t]][2,1]))), nrow=2, ncol=2, byrow=TRUE)
+}
+}
+```
 
 
