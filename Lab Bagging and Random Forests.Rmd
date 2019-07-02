@@ -334,21 +334,65 @@ return(Results)
 }
 ```
 
+### Define a function Tabs: computes the tables with nodesizes of 1,5,10. 
+
 ```{r}
-# See if it works: It does!
-set.seed(06232019)
-n <- 2000  #number of observations (training and test set combined)
-sig1 <- 5
+Tabs <- function(n, sig, equation, loops){
+i <- loops
+#Make a result storing array: MSE, Avg. Width, # in PI
+rec <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+his <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+tra <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
 
-x <- runif(n, 0, 10) #generate x variable Unif(0,10) distribution
-e <- rnorm(n, 0, sig1) #generate error term 
-y <- 2*x1+3 + e1  #generate response values 
+#set.seed(06232019)
 
-data1 <- data.frame(x, y) #combine explanatory and response varables into data frame
-trainOne <- data1[1:(n/2), ] #1st half of observations as training data
-test1 <- data1[(n/2+1):n, ] #2nd half of observations as test data
+#Make a For Loop
+for (t in 1:i) {
 
-resultat <- Results(traindata=trainOne, testdata=test1, nodesize = 10)
+x<- runif(n, 0, 10) #generate x variable Unif(0,10) distribution
+e <- rnorm(n, 0, sig) #generate error term 
+y <- equation #generate response values 
+
+data <- data.frame(x, y) #combine explanatory and response varables into data frame
+trainOne <- data[1:(n/2), ] #1st half of observations as training data
+test <- data[(n/2+1):n, ] #2nd half of observations as test data
+
+#rec1
+rec[,,t] <- Results(traindata=trainOne, testdata=test, nodesize =  1)
+#his1
+his[,,t] <- Results(traindata=trainOne, testdata=test, nodesize =  5)
+#tra1
+tra[,,t] <- Results(traindata=trainOne, testdata=test, nodesize = 10)
+}
+
+#Average over i=1:10
+recTab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+
+for (k in 1:2) {
+  for (j in 1:3) {
+    recTab[k,j] <- mean(rec[k,j,])
+  }
+}
+
+hisTab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+
+for (k in 1:2) {
+  for (j in 1:3) {
+    hisTab[k,j] <- mean(his[k,j,])
+  }
+}
+
+traTab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+
+for (k in 1:2) {
+  for (j in 1:3) {
+    traTab[k,j] <- mean(tra[k,j,])
+  }
+}
+
+return(list("results"=list("nodesizeOne"=rec, "nodesizeFive"=his, "nodesizeTen"=tra), "Avg.results"=list("nodesizeOne"=recTab, "nodesizeFive"=hisTab, "nodesizeTen"=traTab) ))
+
+}
 ```
 
 
@@ -356,119 +400,76 @@ resultat <- Results(traindata=trainOne, testdata=test1, nodesize = 10)
 
 ```{r}
 set.seed(06232019)#set seed
-n <- 2000  #number of observations (training and test set combined)
-sig1 <- 5  #error standard deviation
-i <- 10
 
-#Make a result storing array: MSE, Avg. Width, # in PI
-rec1 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
-his1 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
-tra1 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
-
-#Make a For Loop
-for (t in 1:i) {
-
-x<- runif(n, 0, 10) #generate x variable Unif(0,10) distribution
-e <- rnorm(n, 0, sig1) #generate error term 
-y <- 2*x1+3 + e  #generate response values 
-
-data1 <- data.frame(x, y) #combine explanatory and response varables into data frame
-trainOne <- data1[1:(n/2), ] #1st half of observations as training data
-test1 <- data1[(n/2+1):n, ] #2nd half of observations as test data
-
-#rec1
-rec1[,,t] <- Results(traindata=trainOne, testdata=test1, nodesize =  1)
-#his1
-his1[,,t] <- Results(traindata=trainOne, testdata=test1, nodesize =  5)
-#tra1
-tra1[,,t] <- Results(traindata=trainOne, testdata=test1, nodesize = 10)
-}
-```
-
-```{r}
-#Make the table by taking average over i=1:10
-rec1Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
-
-for (k in 1:2) {
-  for (j in 1:3) {
-    rec1Tab[k,j] <- mean(rec1[k,j,])
-  }
-}
-
-his1Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
-
-for (k in 1:2) {
-  for (j in 1:3) {
-    his1Tab[k,j] <- mean(his1[k,j,])
-  }
-}
-
-tra1Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
-
-for (k in 1:2) {
-  for (j in 1:3) {
-    tra1Tab[k,j] <- mean(tra1[k,j,])
-  }
-}
+resultat1 <- Tabs(n=2000, sig=5, equation=2*x+3+e, loops=10)
 ```
 
 ### Simulation 2: Nonlinear Model (one variable)
 
 ```{r}
 set.seed(06232019)#set seed
-n <- 2000  #number of observations (training and test set combined)
-sig1 <- 5  #error standard deviation
-i <- 10
 
+resultat2 <- Tabs(n=2000, sig=5, equation=0.1*(x-7)^2-3*cos(x) + 5*log(abs(x)) + 3 + e, loops=10)
+```
+
+### Define a function "mTabs": multi-variable version of Tabs
+
+```{r}
+mTabs <- function(n, sig, equation, loops){
+i <- loops
 #Make a result storing array: MSE, Avg. Width, # in PI
-rec2 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
-his2 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
-tra2 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+rec <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+his <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+tra <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+
+#set.seed(06232019)
 
 #Make a For Loop
 for (t in 1:i) {
 
-x <- runif(n, 0, 10) #generate x variable Unif(0,10) distribution
-e <- rnorm(n, 0, sig1) #generate error term 
-y <- 0.1*(x-7)^2-3*cos(x) + 5*log(abs(x)) + 3 + e  #generate response values
+xvec <- runif(n*10, 0, 10) #generate observations for 10 explanatory variables
+X <- matrix(xvec, ncol=10) #arrange explanatory variables into matrix
+e <- rnorm(n , 0, sig) #generate error term 
+y <- equation #generate response values 
 
-data2 <- data.frame(x, y) #combine explanatory and response varables into data frame
-trainTwo <- data2[1:(n/2), ] #1st half of observations as training data
-test2 <- data2[(n/2+1):n, ] #2nd half of observations as test data
+data <- data.frame(x, y) #combine explanatory and response varables into data frame
+trainOne <- data[1:(n/2), ] #1st half of observations as training data
+test <- data[(n/2+1):n, ] #2nd half of observations as test data
 
-#rec2
-rec2[,,t] <- Results(traindata=trainTwo, testdata=test2, nodesize =  1)
-#his2
-his2[,,t] <- Results(traindata=trainTwo, testdata=test2, nodesize =  5)
-#tra2
-tra2[,,t] <- Results(traindata=trainTwo, testdata=test2, nodesize = 10)
+#rec1
+rec[,,t] <- Results(traindata=trainOne, testdata=test, nodesize =  1)
+#his1
+his[,,t] <- Results(traindata=trainOne, testdata=test, nodesize =  5)
+#tra1
+tra[,,t] <- Results(traindata=trainOne, testdata=test, nodesize = 10)
 }
-```
 
-```{r}
-#Make the table by taking average over i=1:10
-rec2Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+#Average over i=1:10
+recTab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
 
 for (k in 1:2) {
   for (j in 1:3) {
-    rec2Tab[k,j] <- mean(rec2[k,j,])
+    recTab[k,j] <- mean(rec[k,j,])
   }
 }
 
-his2Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+hisTab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
 
 for (k in 1:2) {
   for (j in 1:3) {
-    his2Tab[k,j] <- mean(his2[k,j,])
+    hisTab[k,j] <- mean(his[k,j,])
   }
 }
 
-tra2Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+traTab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
 
-for(k in 1:2) {
+for (k in 1:2) {
   for (j in 1:3) {
-    tra2Tab[k,j] <- mean(tra2[k,j,])
+    traTab[k,j] <- mean(tra[k,j,])
   }
+}
+
+return(list("results"=list("nodesizeOne"=rec, "nodesizeFive"=his, "nodesizeTen"=tra), "Avg.results"=list("nodesizeOne"=recTab, "nodesizeFive"=hisTab, "nodesizeTen"=traTab) ))
 }
 ```
 
@@ -477,138 +478,166 @@ for(k in 1:2) {
 
 ```{r}
 set.seed(06232019)#set seed
-n <- 2000  #number of observations (training and test set combined)
-sig1 <- 5  #error standard deviation
-i <- 5
 
-#Make a result storing array: MSE, Avg. Width, # in PI
-rec3 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
-his3 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
-tra3 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
-
-#Make a For Loop
-for (t in 1:i) {
-
-# Simulate
-xvec <- runif(n*10, 0, 10) #generate observations for 10 explanatory variables
-X <- matrix(xvec, ncol=10) #arrange explanatory variables into matrix
-e <- rnorm(n , 0, sig1) #generate error term 
-y <- 2*X[,1]+3*X[,4]+4*X[,6]-3*X[,7]+ X[,9] + e  #generate response values
-
-data3 <- data.frame(X, y) #combine explanatory and response varables into data frame
-trainThree <- data3[1:(n/2), ] #1st half of observations as training data
-test3 <- data3[(n/2+1):n, ] #2nd half of observations as test data
-
-#rec3
-rec3[,,t] <- Results(traindata=trainThree, testdata=test3, nodesize =  1)
-#his3
-his3[,,t] <- Results(traindata=trainThree, testdata=test3, nodesize =  5)
-#tra3
-tra3[,,t] <- Results(traindata=trainThree, testdata=test3, nodesize = 10)
-}
+resultat3 <- Tabs(n=2000, sig=5, equation=2*X[,1]+3*X[,4]+4*X[,6]-3*X[,7]+ X[,9] + e, loops=10)
 ```
-
-```{r}
-#Make the table by taking average over i=1:10
-rec3Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
-
-for (k in 1:2) {
-  for (j in 1:3) {
-    rec3Tab[k,j] <- mean(rec3[k,j,])
-  }
-}
-
-his3Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
-
-for (k in 1:2) {
-  for (j in 1:3) {
-    his3Tab[k,j] <- mean(his3[k,j,])
-  }
-}
-
-tra3Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
-
-for (k in 1:2) {
-  for (j in 1:3) {
-    tra3Tab[k,j] <- mean(tra3[k,j,])
-  }
-}
-
-```
-
 
 ### Simulation 4: Nonlinear Model (multivariate)
 
 ```{r}
 set.seed(06232019)#set seed
- #number of observations (training and test set combined)
-sig1 <- 5  #error standard deviation
-i <- 10
 
-#Make a result storing array: MSE, Avg. Width, # in PI
-rec4 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
-his4 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
-tra4 <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
-
-#Make a For Loop
-for (t in 1:i) {
-
-# Simulate data
-xvec <- runif(n*10, 0, 10) #generate observations for 10 explanatory variables
-X <- matrix(xvec, ncol=10) #arrange explanatory variables into matrix
-e <- rnorm(n, 0, sig1) #generate error term 
-y <- (X[,1]-6)^2 + 12*cos(X[,3]) + (X[,7]-5)*(X[,8]-3) + 0.02*(X[,10]-5)^5+ e  #generate response values
-
-data4 <- data.frame(X, y) #combine explanatory and response varables into data frame
-trainFour <- data4[1:(n/2), ] #1st half of observations as training data
-test4 <- data4[(n/2+1):n, ] #2nd half of observations as test data
-
-#rec4
-rec4[,,t] <- Results(traindata=trainFour, testdata=test4, nodesize =  1)
-#his4
-his4[,,t] <- Results(traindata=trainFour, testdata=test4, nodesize =  5)
-#tra4
-tra4[,,t] <- Results(traindata=trainFour, testdata=test4, nodesize = 10)
-}
-```
-
-```{r}
-#Make the table by taking average over i=1:10
-rec4Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
-
-for (k in 1:2) {
-  for (j in 1:3) {
-    rec4Tab[k,j] <- mean(rec4[k,j,])
-  }
-}
-
-his4Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
-
-for (k in 1:2) {
-  for (j in 1:3) {
-    his4Tab[k,j] <- mean(his4[k,j,])
-  }
-}
-
-tra4Tab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
-
-for (k in 1:2) {
-  for (j in 1:3) {
-    tra4Tab[k,j] <- mean(tra4[k,j,])
-  }
-}
-
+resultat4 <- Tabs(n=2000, sig=5, equation=(X[,1]-6)^2 + 12*cos(X[,3]) + (X[,7]-5)*(X[,8]-3) + 0.02*(X[,10]-5)^5 + e , loops=10)
 ```
 
 ### Summarize the Results
 
 ```{r}
-Fin <- list(rec=list(one=rec1Tab,two=rec2Tab, three=rec3Tab, four=rec4Tab), his=list(one=his1Tab, two=his2Tab, three=his3Tab,four=his4Tab), tra=list(one=tra1Tab, two=tra2Tab, three=tra3Tab, four=tra4Tab))
+Fin <- list(nodesizeONE=list(SimOne=rec1Tab,SimTwo=rec2Tab, SimThree=rec3Tab, SimFour=rec4Tab), nodesizeFive=list(SimOne=his1Tab, SimTwo=his2Tab, SimThree=his3Tab,SimFour=his4Tab), nodesizeTen=list(SimOne=tra1Tab, SimTwo=tra2Tab, SimThree=tra3Tab, SimFour=tra4Tab))
 ```
 
+
+## Tuning the Paramters 
+
+### Set Up 
+
 ```{r}
-save.image(file = "LR & RF comparison.Rdata") 
+n <- 2000  #number of observations (training and test set combined)
+sig <- 5  #error standard deviation
+i <- 10
 ```
+
+### Define a function "Tuned": computes the three values using quantreg with optimal nodesize(1-variable)
+
+```{r}
+Tuned <- function(equation, loops, n, sig){
+
+library(randomForestSRC)
+i <- loops
+
+#Make a result storing array: MSE, Avg. Width, # in PI
+tun <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+#Vector to store each nodesize
+tN <- c(rep(NA,i))
+
+
+#Make a For Loop
+for (t in 1:i) {
+
+x<- runif(n, 0, 10) #generate x variable Unif(0,10) distribution
+e <- rnorm(n, 0, sig) #generate error term 
+y <- equation  #generate response values 
+
+data <- data.frame(x, y) #combine explanatory and response varables into data frame
+trainOne <- data[1:(n/2), ] #1st half of observations as training data
+test <- data[(n/2+1):n, ] #2nd half of observations as test data
+
+#Tune the nodesize 
+tuna <- tune(y~., data=trainOne)
+tN[t] <- tuna$optimal[[1]][[1]]
+
+#tun
+tun[,,t] <- Results(traindata=trainOne, testdata=test, nodesize =  tuna$optimal[[1]][[1]])
+
+}
+
+#Average over [,,t]
+tunTab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+
+for (k in 1:2) {
+  for (j in 1:3) {
+    tunTab[k,j] <- mean(tun[k,j,])
+  }
+}
+
+return(list("tN"=tN, "tun"=tun, "tunTab"=tunTab))
+}
+```
+
+
+
+### Simulation 1
+
+```{r}
+set.seed(06232019)#set seed
+
+forSim1 <- Tuned(equation=2*x+3+e, loops=10, n=2000, sig=5)
+t1 <- forSim1
+```
+
+### Simulation 2
+
+```{r}
+set.seed(06232019)#set seed
+forSim2 <- Tuned(equation=0.1*(x-7)^2-3*cos(x) + 5*log(abs(x)) + 3 + e, loops=10, n=2000, sig=5)
+t2 <- forSim2
+```
+
+### Define a function "mTuned" multi-variable version of Tuned
+
+```{r}
+mTuned <- function(equation, loops, n, sig){
+
+library(randomForestSRC)
+i <- loops
+
+#Make a result storing array: MSE, Avg. Width, # in PI
+tun <- array(NA, dim=c(2,3, i), dimnames=list(c("LR","RF"),c("MSE","avg.width","# in PI"),c(1:i)))
+#Vector to store each nodesize
+tN <- c(rep(NA,i))
+
+
+#Make a For Loop
+for (t in 1:i) {
+
+xvec <- runif(n*10, 0, 10) #generate observations for 10 explanatory variables
+X <- matrix(xvec, ncol=10) #arrange explanatory variables into matrix
+e <- rnorm(n , 0, sig) #generate error term 
+y <- equation  #generate response values
+
+data <- data.frame(X, y) #combine explanatory and response varables into data frame
+trainOne <- data[1:(n/2), ] #1st half of observations as training data
+test <- data[(n/2+1):n, ] #2nd half of observations as test data
+
+#Tune the nodesize 
+tuna <- tune(y~., data=trainOne)
+tN[t] <- tuna$optimal[[1]][[1]]
+
+#tun
+tun[,,t] <- Results(traindata=trainOne, testdata=test, nodesize =  tuna$optimal[[1]][[1]])
+
+}
+
+#Average over [,,t]
+tunTab <- matrix(NA, nrow=2, ncol=3, dimnames = list(c("LR","RF"),c("Avg.MSE","Avg.Wid","Avg.CR")))
+
+for (k in 1:2) {
+  for (j in 1:3) {
+    tunTab[k,j] <- mean(tun[k,j,])
+  }
+}
+
+return(list("tN"=tN, "tun"=tun, "tunTab"=tunTab))
+}
+```
+
+
+### Simulation 3
+
+```{r}
+set.seed(06232019)#set seed
+forSim3 <- mTuned(equation=2*X[,1]+3*X[,4]+4*X[,6]-3*X[,7]+ X[,9] + e, loops=10, n=2000, sig=5)
+t3 <- forSim3
+```
+
+### Simulation 4
+
+```{r}
+set.seed(06232019)#set seed
+forSim4 <- mTuned(equation=(X[,1]-6)^2 + 12*cos(X[,3]) + (X[,7]-5)*(X[,8]-3) + 0.02*(X[,10]-5)^5+ e, loops=10, n=2000, sig=5)
+t4 <- forSim4
+```
+
 
 ## New Statistical Index? 
 
