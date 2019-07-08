@@ -1,4 +1,4 @@
-# Simulation studies to investigate RF and LM prediction intervals
+#Simulation studies to investigate RF and LM prediction intervals
 
 ###################################################################
 # Simulation 1: Linear Model (one variable)
