@@ -296,32 +296,27 @@ data4 <- mTabs(n=2000, np=10, sig=5, equation=eq4, loops=10, ns=ns4)
 df4 <- tada(ns=ns4, data=data4)
 
 ##### Plot #####
-library(ggformula)
 
+### Function for plotting ###
+plotter <- function(data){
+  library(ggformula)
+  return(list("Avg.MSPE" = ggplot(data=data, aes(x=Nodesize, y=Avg.MSPE,color=Method)) + geom_point() + geom_line(),
+              "Avg.Wid" = ggplot(data=data, aes(x=Nodesize, y=Avg.Wid, color=Method)) + geom_point() + geom_line(),
+              "Avg.CR" = ggplot(data=data, aes(x=Nodesize, y=Avg.CR, color=Method)) + geom_point() + geom_line() 
+              +geom_hline(yintercept=0.95) ))
+  
+}
 ### Sim 1 ### 
-plot1 <- 
-  list("Avg.MSPE" = ggplot(data=df1, aes(x=Nodesize, y=Avg.MSPE,color=Method)) + geom_point() + geom_line(),
-        "Avg.Wid" = ggplot(data=df1, aes(x=Nodesize, y=Avg.Wid, color=Method)) + geom_point() + geom_line(),
-         "Avg.CR" = ggplot(data=df1, aes(x=Nodesize, y=Avg.CR, color=Method)) + geom_point() + geom_line() 
-          +geom_hline(yintercept=0.95) )
+plot1 <- plotter(data=df1)
 
 ### Sim 2 ### 
-plot2 <- list("Avg.MSPE" = ggplot(data=df2, aes(x=Nodesize, y=Avg.MSPE,color=Method)) + geom_point() + geom_line(),
-              "Avg.Wid" = ggplot(data=df2, aes(x=Nodesize, y=Avg.Wid, color=Method)) + geom_point() + geom_line(),
-              "Avg.CR" = ggplot(data=df2, aes(x=Nodesize, y=Avg.CR, color=Method)) + geom_point() + geom_line() 
-              +geom_hline(yintercept=0.95))
+plot2 <- plotter(data=df2)
 
 ### Sim 3 ### 
-plot3 <- list("Avg.MSPE" = ggplot(data=df3, aes(x=Nodesize, y=Avg.MSPE,color=Method)) + geom_point() + geom_line(),
-              "Avg.Wid" = ggplot(data=df3, aes(x=Nodesize, y=Avg.Wid, color=Method)) + geom_point() + geom_line(),
-              "Avg.CR" = ggplot(data=df3, aes(x=Nodesize, y=Avg.CR, color=Method)) + geom_point() + geom_line() 
-              +geom_hline(yintercept=0.95))
+plot3 <- plotter(data=df3)
 
 ### Sim 4 ### 
-plot4 <- list("Avg.MSPE" = ggplot(data=df4, aes(x=Nodesize, y=Avg.MSPE,color=Method)) + geom_point() + geom_line(),
-              "Avg.Wid" = ggplot(data=df4, aes(x=Nodesize, y=Avg.Wid, color=Method)) + geom_point() + geom_line(),
-              "Avg.CR" = ggplot(data=df4, aes(x=Nodesize, y=Avg.CR, color=Method)) + geom_point() + geom_line() 
-              +geom_hline(yintercept=0.95))
+plot4 <- plotter(data=df4)
 
 
 
