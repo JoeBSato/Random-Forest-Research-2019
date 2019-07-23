@@ -425,6 +425,8 @@ for (k in 1:length(eqAll)) {
   }
 }
 
+save(dfs, stored, file="OriginalSimulationStudies_Results.Rdata")
+
 ##### Plot #####
 
 ### Function for plotting ###
