@@ -315,29 +315,29 @@ makedata <- function(n, np, sig, equation, error){
 ##### Find optimal nodesizes, make the vector of nodesizes #####
 
 ### Function to find optimal nodesizes and their mean ###
-optimize <- function(loops, equation, n, np, error){
-  library(randomForestSRC)
-  ns <- c()
+#optimize <- function(loops, equation, n, np, error){
+ # library(randomForestSRC)
+  #ns <- c()
   
-  for (k in 1:loops) {
-    see <- makedata(n=n, np=np, sig=5, equation=equation, error=error)
-    ns[k]   <- tune(y~., see$train)$optimal[[1]]
-    ns[k+1] <- tune(y~., see$test )$optimal[[1]]
-  }
+  #for (k in 1:loops) {
+   # see <- makedata(n=n, np=np, sig=5, equation=equation, error=error)
+    #ns[k]   <- tune(y~., see$train)$optimal[[1]]
+    #ns[k+1] <- tune(y~., see$test )$optimal[[1]]
+  #}
   
-  return(list("Avg.NS"=mean(ns), "NS"=ns))
-}
+  #return(list("Avg.NS"=mean(ns), "NS"=ns))
+#}
 
 ### optimal ns for each combination of base and error equation ###
 nps <- c(1,1,10,10,1)
 errors <- list("error1"=list(),"error2"=list(),"error3"=list(),"error4"=list(),"error5"=list(),"error6"=list())
 
-refer <- list("eq1"=errors,"eq2"=errors,"eq3"=errors,"eq4"=errors,"eq5"=errors)
-for (k in 1:length(eqAll)) {
-  for(t in 1:length(errorAll)){
-    refer[[k]][[t]] <- optimize(loops=2, equation=eqAll[[k]], n=50, np=nps[k], error=errorAll[[t]])
-  }
-}
+#refer <- list("eq1"=errors,"eq2"=errors,"eq3"=errors,"eq4"=errors,"eq5"=errors)
+#for (k in 1:length(eqAll)) {
+ # for(t in 1:length(errorAll)){
+  #  refer[[k]][[t]] <- optimize(loops=2, equation=eqAll[[k]], n=50, np=nps[k], error=errorAll[[t]])
+  #}
+#}
 
 ### ns vectors ###
 errorsVec <- list("error1"=c(rep(NA,11)),"error2"=c(rep(NA,11)),"error3"=c(rep(NA,11)),
@@ -345,20 +345,20 @@ errorsVec <- list("error1"=c(rep(NA,11)),"error2"=c(rep(NA,11)),"error3"=c(rep(N
 ns <- list("eq1"=errorsVec,"eq2"=errorsVec,"eq3"=errorsVec,"eq4"=errorsVec,"eq5"=errorsVec)
 for (k in 1:length(eqAll)) {
   for(t in 1:length(errorAll)){
-    Flo <- floor(refer[[k]][[t]][[1]])
-    if(refer[[k]][[t]][[1]] <= 6){
+    Flo <- floor(optimals[[k]][[t]][[2]])
+    if(optimals[[k]][[t]][[2]] <= 6){
       ns[[k]][[t]] <- c(1:11)
     }
-    else if(6    < refer[[k]][[t]][[1]] & refer[[k]][[t]][[1]] <= 6.5){
+    else if(6    < optimals[[k]][[t]][[2]] & optimals[[k]][[t]][[2]] <= 6.5){
       ns[[k]][[t]] <- c(1,2,4,5,6,7,8,9,11,12,13)
     }
-    else if (6.5 < refer[[k]][[t]][[1]] & refer[[k]][[t]][[1]] <= 7){
+    else if (6.5 < optimals[[k]][[t]][[2]] & optimals[[k]][[t]][[2]] <= 7){
       ns[[k]][[t]] <- c(1,2,3,4,6,7,8,10,11,12,14)
     }
-    else if (7   < refer[[k]][[t]][[1]] & refer[[k]][[t]][[1]] <= 7.5){
+    else if (7   < optimals[[k]][[t]][[2]] & optimals[[k]][[t]][[2]] <= 7.5){
       ns[[k]][[t]] <- c(1,3,5,6,7,8,9,10,11,13,15)
     }
-    else if (7.5 < refer[[k]][[t]][[1]] & refer[[k]][[t]][[1]] <= 8){
+    else if (7.5 < optimals[[k]][[t]][[2]] & optimals[[k]][[t]][[2]] <= 8){
       ns[[k]][[t]] <- c(1,3,5,6,7,8,9,11,13,15,16)
     }
     else{
@@ -371,7 +371,7 @@ for (k in 1:length(eqAll)) {
       for (i in 1:4) {
         ns[[k]][[t]][i+6] <- Flo + floor((Flo-1)/4)*i
       }
-      
+      #"refer" and "optimals" have "nodesizes" and "nodesizesAvg" in a reverse order
     }
     
   }
