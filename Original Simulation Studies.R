@@ -1,5 +1,5 @@
 # Need to load this work environment in order to get the right nodesizes
-load("30 pettens retry.RData")
+load("30 pattens retry.RData")
 
 library(randomForestSRC)
 ##### CR: computes the coverage rate of the model under the given data #####
